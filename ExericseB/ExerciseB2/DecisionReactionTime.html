@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <style>
+        #shape {
+            position: absolute;
+            top: 0px;
+            left: 0px;
+            background-color: white;
+            transition: background-color 8s;
+        }
+
+    </style>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+    <h1 id="title">Nutzerstudie</h1>
+    <h3 id="instruction"></h3>
+    <h3 id="keybindings"></h3>
+
+    <h3 id="question"></h3>
+    <h3 id="question2"></h3>
+    <h3 id="question3"></h3>
+    <h3 id="question4"></h3>
+    <h3 id="question5"></h3>
+
+    <div id="shape"></div>
+
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+
+    <script>
+        const question1Element = document.getElementById("question");
+        const question2Element = document.getElementById("question2");
+        const question3Element = document.getElementById("question3");
+        const question4Element = document.getElementById("question4");
+        const question5Element = document.getElementById("question5");
+
+        const titleElement = document.getElementById("title");
+        const instructionElement = document.getElementById("instruction");
+        const keybindingsElement = document.getElementById("keybindings")
+        const shapeElement = document.getElementById("shape");
+
+        const explanationLinesArray = ["Bei diesem Experiment wird Ihnen in jedem Durchgang eine Form in der Bildschirmmitte gezeigt.",
+            "Die Form kann entweder ein ausgefülltes Quadrat oder ein ausgefülltes Dreieck sein.",
+            "Die Formen können unterschiedliche Größen, sowie Farben haben.",
+            "Ihre Aufgabe ist es bei einem Quadrat die Leertaste zu drücken und bei keiner anderen Form.",
+            "Bei Erscheinung eines Dreieckes können sie entweder warten bis die nächste Form erscheint oder mit 'Enter' direkt die nächste anzeigen lassen.",
+            "Das Drücken der Leertaste, obwohl kein Rechteck sichtbar ist, führt zu einem Fehler.",
+            "Das Drücken von der Entertaste, obwohl kein Dreieck sichtbar ist, führt zu einem Fehler.",
+            "Jeder Durchgang beginnt mit einer zufälligen Pausenzeit im Sekundenbereich.",
+            "Sobald Sie ein Quadrat korrekt erkannt haben oder einen Fehler gemacht haben, wird Ihnen dies für zwei Sekunden angezeigt.",
+            "Insgesamt gibt es 30 Durchläufe."]
+
+        const keyFunctionsMap = new Map()
+
+
+        let currentRoundNumber = 0;
+        let amountOfFailures = 0;
+
+        let currentSpawnId = 0;
+
+        let currentSpawnTime = Date.now();
+        let currentShapeIsSquare = false;
+
+        const reactionTimeArray = new Array(30);
+        const squareColorArray = new Array(30);
+
+        const pressedKeysSet = new Set();
+
+        const select = document.createElement("select");
+        const genderSelect = document.createElement("select");
+        const gamerSelect = document.createElement("select");
+        const brillenSelect = document.createElement("select");
+
+        let age; // Variable für das Alter
+        let gender; // Variable für das Geschlecht
+        let gamerStatus; // Variable für den Spielerstatus
+        let wearsGlasses; // Variable für das Tragen einer Brille
+
+
+        window.addEventListener('keydown', function (event) {
+            if(!pressedKeysSet.has(event.key)) {
+                console.log("key pressed:", event.key)
+
+                const lambda = keyFunctionsMap.get(event.key);
+                if(lambda != null) {
+                    lambda(event);
+                }
+
+                pressedKeysSet.add(event.key);
+            }
+        });
+
+        window.addEventListener("keyup", function (event) {
+            pressedKeysSet.delete(event.key);
+        });
+
+        showSurveyScreen();
+
+        function showSurveyScreen() {
+            titleElement.textContent = "Umfrage";
+            instructionElement.textContent = "Bitte beantworten Sie die folgende Fragen:";
+            question1Element.textContent = "Wie alt sind Sie?";
+            select.name = "alter";
+            select.id = "alter";
+            const defaultOption = document.createElement("option");
+            defaultOption.value = "";
+            defaultOption.text = "Bitte wählen Sie Ihr Alter";
+            defaultOption.disabled = true;
+            defaultOption.selected = true;
+            select.appendChild(defaultOption);
+            for (let i = 18; i <= 100; i++) {
+                const option = document.createElement("option");
+                option.value = i;
+                option.text = i;
+                select.appendChild(option);
+            }
+            question1Element.appendChild(document.createTextNode("\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0"));
+            question1Element.appendChild(select);
+            select.addEventListener("change", function() {
+                age = parseInt(select.value); // Wert des Dropdown-Menüs in eine Zahl umwandeln und in die Variable speichern
+            });
+
+
+            question2Element.textContent = "Welchem Geschlecht gehören Sie an?";
+            question2Element.appendChild(document.createTextNode("\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0"));
+            genderSelect.name = "geschlecht";
+            genderSelect.id = "geschlecht";
+            const genderDefaultOption = document.createElement("option");
+            genderDefaultOption.value = "";
+            genderDefaultOption.text = "Bitte wählen Sie Ihr Geschlecht";
+            genderDefaultOption.disabled = true;
+            genderDefaultOption.selected = true;
+            genderSelect.appendChild(genderDefaultOption);
+            const genderArray = ["Männlich", "Weiblich"];
+            genderArray.forEach(gender => {
+                const option = document.createElement("option");
+                option.value = gender;
+                option.text = gender;
+                genderSelect.appendChild(option);
+            });
+            question2Element.appendChild(genderSelect);
+            genderSelect.addEventListener("change", function() {
+                gender = genderSelect.value; // Wert des Dropdown-Menüs in die Variable speichern
+            });
+
+
+            question3Element.textContent = "Wie oft spielen sie Computerspiele?";
+            question3Element.appendChild(document.createTextNode("\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0"));
+            gamerSelect.name = "gamer";
+            gamerSelect.id = "gamer";
+            const gamerDefaultOption = document.createElement("option");
+            gamerDefaultOption.value = "";
+            gamerDefaultOption.text = "Bitte wählen Sie eine Antwort";
+            gamerDefaultOption.disabled = true;
+            gamerDefaultOption.selected = true;
+            gamerSelect.appendChild(gamerDefaultOption);
+            const gamerArray = ["Sehr oft (fast E-Sportler)", "Oft", "Mittelmäßig", "Selten", "Gar nicht"];
+            gamerArray.forEach(gamer => {
+                const option = document.createElement("option");
+                option.value = gamer;
+                option.text = gamer;
+                gamerSelect.appendChild(option);
+            });
+            question3Element.appendChild(gamerSelect);
+            gamerSelect.addEventListener("change", function() {
+                gamerStatus = gamerSelect.value; // Wert des Dropdown-Menüs in die Variable speichern
+            });
+
+
+
+            question4Element.textContent = "Tragen Sie eine Brille?";
+            question4Element.appendChild(document.createTextNode("\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0"));
+            brillenSelect.name = "brille";
+            brillenSelect.id = "brille";
+            const brillenDefaultOption = document.createElement("option");
+            brillenDefaultOption.value = "";
+            brillenDefaultOption.text = "Bitte wählen Sie eine Antwort";
+            brillenDefaultOption.disabled = true;
+            brillenDefaultOption.selected = true;
+            brillenSelect.appendChild(brillenDefaultOption);
+            const brillenArray = ["Ja", "Nein"];
+            brillenArray.forEach(brille => {
+                const option = document.createElement("option");
+                option.value = brille;
+                option.text = brille;
+                brillenSelect.appendChild(option);
+            });
+            question4Element.appendChild(brillenSelect);
+            brillenSelect.addEventListener("change", function() {
+                wearsGlasses = brillenSelect.value; // Wert, ob Brille ja oder nein, wird hier in wearsGlasses gespeichert
+            });
+
+
+            const finishButton = document.createElement("button");
+            finishButton.textContent = "Finish";
+            finishButton.disabled = true;
+            finishButton.addEventListener("click", finishSurvey);
+
+            question5Element.appendChild(finishButton);
+
+            select.addEventListener("change", enableFinishButton);
+            genderSelect.addEventListener("change", enableFinishButton);
+            gamerSelect.addEventListener("change", enableFinishButton);
+            brillenSelect.addEventListener("change", enableFinishButton);
+
+            enableFinishButton();
+        }
+
+
+        function enableFinishButton() {
+            const finishButton = document.querySelector("#question5 button");
+            const allDropdowns = [select, genderSelect, gamerSelect, brillenSelect];
+            const allDropdownsSelected = allDropdowns.every(dropdown => dropdown.value !== "");
+
+            if (allDropdownsSelected) {
+                finishButton.disabled = false;
+            } else {
+                finishButton.disabled = true;
+            }
+        }
+
+
+        function finishSurvey() {
+            question1Element.style.visibility = "hidden";
+            question2Element.style.visibility = "hidden";
+            question3Element.style.visibility = "hidden";
+            question4Element.style.visibility = "hidden";
+            question5Element.style.visibility = "hidden";
+            showExplanationScreen();
+        }
+
+        function showExplanationScreen() {
+            clearScreen();
+            clearKeyLambdas();
+
+            currentRoundNumber = 0;
+            amountOfFailures = 0;
+            currentSpawnId++;
+            removeAllChildrenFromElement(instructionElement)
+
+            titleElement.textContent = "Nutzerstudie";
+            instructionElement.textContent = "Erklärung:";
+            keybindingsElement.textContent = "[Enter]: Beginn des Experiments"
+
+            const listingElement = document.createElement("ul");
+
+            for (const line of explanationLinesArray) {
+                const listingItemElement = document.createElement("li");
+                listingItemElement.textContent = line;
+                listingElement.appendChild(listingItemElement);
+            }
+
+            instructionElement.appendChild(listingElement);
+
+            keyFunctionsMap.set("Enter", startExperiment);
+        }
+
+        function startExperiment() {
+            clearScreen();
+            clearKeyLambdas();
+
+            startNewRound();
+        }
+
+        function startNewRound() {
+            titleElement.textContent = "Durchführung des Experiments... (" + currentRoundNumber + " / 30)";
+            instructionElement.textContent = "Drücken sie die Leertaste, sobald sie ein Quadrat erkennen.";
+            keybindingsElement.textContent = "[Space]: Rechteck erkannt, [Enter]: Dreieck überspringen, [ESC]: Abbruch";
+
+            keyFunctionsMap.set("Escape", showExplanationScreen)
+            keyFunctionsMap.set(" ", registerPress)
+            keyFunctionsMap.set("Enter", pressSkipShape)
+
+            const delay = Math.floor(Math.random() * 4000) + 2000;
+            const spawnId = ++currentSpawnId;
+
+            console.log("Set timeout 'spawnRectangle' with delay =", delay, " and spawnId =", spawnId);
+
+            setTimeout(function() { spawnShape(spawnId) }, delay);
+        }
+
+        function registerPress() {
+            if(shapeElement.style.visibility === "hidden" || !currentShapeIsSquare) {
+                registerMistake();
+            } else {
+                registerSuccess();
+            }
+        }
+
+        function registerMistake() {
+            clearKeyLambdas();
+            clearScreen();
+
+            currentSpawnId++;
+            amountOfFailures++;
+            reactionTimeArray[currentRoundNumber] = -1;
+            currentRoundNumber++;
+
+            titleElement.textContent = "Durchführung des Experiments... (" + currentRoundNumber + " / 30)";
+            instructionElement.textContent = "Fehler!";
+            keybindingsElement.textContent = "[ESC]: Abbruch";
+
+            keyFunctionsMap.set("Escape", showExplanationScreen);
+
+            if(currentRoundNumber < 30) {
+                setTimeout(startNewRound, 2000);
+
+            } else {
+                downloadResults();
+            }
+        }
+
+
+        function registerSuccess() {
+            clearKeyLambdas();
+            clearScreen();
+
+            currentSpawnId++;
+            const endTime = Date.now();
+            reactionTimeArray[currentRoundNumber] = endTime - currentSpawnTime;
+            currentRoundNumber++;
+
+            titleElement.textContent = "Durchführung des Experiments... (" + currentRoundNumber + " / 30)";
+            instructionElement.textContent = "Korrekt!";
+            keybindingsElement.textContent = "[ESC]: Abbruch";
+
+            if(currentRoundNumber < 30) {
+                setTimeout(startNewRound, 2000);
+
+            } else {
+                downloadResults();
+            }
+        }
+
+
+        function pressSkipShape() {
+            if(currentShapeIsSquare) {
+                registerMistake();
+            } else {
+                spawnShape(++currentSpawnId);
+            }
+        }
+
+        function spawnShape(spawnId) {
+            console.log("Executing 'spawnRectangle' with spawnId = ", spawnId, "and currentSpawnId =", currentSpawnId);
+            if(currentSpawnId === spawnId) {
+                shapeElement.innerHTML = ''; // Clear the container
+                let shapeType = Math.random() < 0.5 ? 'square' : 'triangle'; // 50% chance for each
+                let rotation = Math.floor(Math.random() * 4) * 90; // Random rotation 0, 90, 180, or 270
+                let size = Math.floor(Math.random() * 200) + 100;
+
+                let shape = document.createElement('div');
+                shape.style.width = size + "px";
+                shape.style.height = size + "px";
+                shape.style.transform = 'rotate(' + rotation + 'deg)';
+                shapeElement.style.visibility = "visible";
+
+                const color = Math.random() < 0.5 ? "purple" : "orange";
+                squareColorArray[currentRoundNumber] = color;
+
+                if (shapeType === 'square') {
+                    shape.style.background = color;
+                } else {
+                    shape.style.width = '0';
+                    shape.style.height = '0';
+                    shape.style.borderLeft = '0px solid transparent';
+                    shape.style.borderRight = size + "px solid transparent";
+                    shape.style.borderBottom = size + "px solid " + color;
+
+                    const delay = Math.floor(Math.random() * 4000) + 2000;
+                    const spawnId = ++currentSpawnId;
+
+                    setTimeout(function() { spawnShape(spawnId) }, delay);
+                }
+
+                currentShapeIsSquare = (shapeType === "square");
+                shapeElement.appendChild(shape);
+
+                shape.style.position = "absolute";
+                shape.style.left = (window.innerWidth / 2 - size / 2) + "px" ;
+                shape.style.top = (window.innerHeight / 2 - size / 2) + "px" ;
+                currentSpawnTime = Date.now();
+            }
+        }
+
+        function clearScreen() {
+            titleElement.innerHTML = "";
+            instructionElement.innerHTML = "";
+            keybindingsElement.innerHTML = "";
+
+            shapeElement.style.visibility = "hidden";
+        }
+
+        function clearKeyLambdas() {
+            keyFunctionsMap.clear();
+        }
+
+
+        function downloadResults() {
+            // Erstellen Sie ein Arbeitsblatt
+            const ws = XLSX.utils.aoa_to_sheet(getResultTable());
+
+            // Fügen Sie das Arbeitsblatt zu einer Arbeitsmappe hinzu
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Blatt1");
+
+            // Erstellen Sie eine Blob-Datei aus der Arbeitsmappe
+            const wbout = XLSX.write(wb, {bookType:'xlsx', type:'binary'});
+            const data = new Blob([s2ab(wbout)], {type:'application/octet-stream'});
+
+            const dataDownloadURL = URL.createObjectURL(data);
+            const link = document.createElement("a");
+            link.href = dataDownloadURL;
+            link.download = "Ergebnisse " + getCurrentTimestamp() + ".xlsx";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            showExplanationScreen();
+        }
+
+        function getCurrentTimestamp() {
+            let date = new Date();
+            let jahr = date.getFullYear();
+            let monat = date.getMonth() + 1; // JavaScript zählt Monate von 0 bis 11
+            let tag = date.getDate();
+            let stunden = date.getHours();
+            let minuten = date.getMinutes();
+
+            // Fügt eine führende Null hinzu, wenn die Zahl kleiner als 10 ist
+            monat = (monat < 10) ? '0' + monat : monat;
+            tag = (tag < 10) ? '0' + tag : tag;
+            stunden = (stunden < 10) ? '0' + stunden : stunden;
+            minuten = (minuten < 10) ? '0' + minuten : minuten;
+
+            return `${stunden}-${minuten}-${tag}-${monat}-${jahr}`;
+        }
+
+        function getResultTable() {
+            const rowsArray = new Array(31);
+
+            rowsArray[0] = ["Alter", "", "Durchlauf", "Reaktionszeit", "Farbe", "", "Arith. Mittel (Gesamt)", "Std. Abweichung (Gesamt)", "Fehlerquote (Gesamt)"];
+
+            for(let i = 1; i < 31; i++) {
+                rowsArray[i] = ["", "", i, reactionTimeArray[i-1], squareColorArray[i-1], "", "", "", ""];
+            }
+
+            rowsArray[1][0] = age;
+
+            rowsArray[3][0] = "Geschlecht";
+            rowsArray[4][0] = gender;
+
+            rowsArray[6][0] = "PC Spiele";
+            rowsArray[7][0] = gamerStatus;
+
+            rowsArray[9][0] = "Brille";
+            rowsArray[10][0] = wearsGlasses;
+
+            rowsArray[1][6] = calcMean();
+            rowsArray[1][7] = calcStandardDeviation();
+            rowsArray[1][8] = calcErrorRate();
+
+            rowsArray[3][6] = "Arith. Mittel (Lila)";
+            rowsArray[3][7] = "Std. Abweichung (Lila)";
+            rowsArray[3][8] = "Fehlerquote (Lila)";
+            rowsArray[4][6] = calcMeanPurple();
+            rowsArray[4][7] = calcStandardDeviationPurple();
+            rowsArray[4][8] = calcErrorRatePurple();
+
+            rowsArray[6][6] = "Arith. Mittel (Orange)";
+            rowsArray[6][7] = "Std. Abweichung (Orange)";
+            rowsArray[6][8] = "Fehlerquote (Orange)";
+            rowsArray[7][6] = calcMeanOrange();
+            rowsArray[7][7] = calcStandardDeviationOrange();
+            rowsArray[7][8] = calcErrorRateOrange();
+
+
+            return rowsArray;
+        }
+
+        function calcMean() {
+            let amountOfValues = 0;
+            let sum = 0;
+
+            for(const time of reactionTimeArray) {
+                if(time >= 0) {
+                    sum += time;
+                    amountOfValues++;
+                }
+            }
+
+            return sum / amountOfValues;
+        }
+
+        function calcStandardDeviation() {
+            const mean = calcMean();
+            let sum = 0;
+            let amountOfValues = 0;
+
+            for(const time of reactionTimeArray) {
+                if(time >= 0) {
+                    sum += Math.pow(mean - time, 2);
+                    amountOfValues++;
+                }
+            }
+
+            return Math.sqrt(sum / amountOfValues);
+        }
+
+        function calcErrorRate() {
+            let amountOfErrors = 0;
+
+            for(const time of reactionTimeArray) {
+                if(time < 0) {
+                    amountOfErrors++;
+                }
+            }
+
+            return amountOfErrors / reactionTimeArray.length;
+        }
+
+        function calcMeanPurple() {
+            let sum = 0;
+            let amountOfValues = 0;
+
+            for(const i in reactionTimeArray) {
+                if(squareColorArray[i] === "purple" && reactionTimeArray[i] >= 0) {
+                    sum += reactionTimeArray[i];
+                    amountOfValues++;
+                }
+            }
+
+            return sum / amountOfValues;
+        }
+
+        function calcStandardDeviationPurple() {
+            const mean = calcMeanPurple();
+            let sum = 0;
+            let amountOfValues = 0;
+
+            for(const i in reactionTimeArray) {
+                if(squareColorArray[i] === "purple" && reactionTimeArray[i] >= 0) {
+                    sum += Math.pow(mean - reactionTimeArray[i], 2);
+                    amountOfValues++;
+                }
+            }
+
+            return Math.sqrt(sum / amountOfValues);
+        }
+
+        function calcErrorRatePurple() {
+            let amountOfErrors = 0;
+            let amountOfValues = 0;
+
+            for(const i in reactionTimeArray) {
+                if(squareColorArray[i] === "purple") {
+                    amountOfValues++;
+                    if(reactionTimeArray[i] < 0) {
+                        amountOfErrors++;
+                    }
+                }
+            }
+
+            return amountOfErrors / reactionTimeArray.length;
+        }
+
+
+        function calcMeanOrange() {
+            let sum = 0;
+            let amountOfValues = 0;
+
+            for(const i in reactionTimeArray) {
+                if(squareColorArray[i] === "orange" && reactionTimeArray[i] >= 0) {
+                    sum += reactionTimeArray[i];
+                    amountOfValues++;
+                }
+            }
+
+            return sum / amountOfValues;
+        }
+
+        function calcStandardDeviationOrange() {
+            const mean = calcMeanPurple();
+            let sum = 0;
+            let amountOfValues = 0;
+
+            for(const i in reactionTimeArray) {
+                if(squareColorArray[i] === "orange" && reactionTimeArray[i] >= 0) {
+                    sum += Math.pow(mean - reactionTimeArray[i], 2);
+                    amountOfValues++;
+                }
+            }
+
+            return Math.sqrt(sum / amountOfValues);
+        }
+
+        function calcErrorRateOrange() {
+            let amountOfErrors = 0;
+            let amountOfValues = 0;
+
+            for(const i in reactionTimeArray) {
+                if(squareColorArray[i] === "orange") {
+                    amountOfValues++;
+                    if(reactionTimeArray[i] < 0) {
+                        amountOfErrors++;
+                    }
+                }
+            }
+
+            return amountOfErrors / reactionTimeArray.length;
+        }
+
+        function s2ab(s) {
+            const buf = new ArrayBuffer(s.length);
+            const view = new Uint8Array(buf);
+            for (let i=0; i<s.length; i++) view[i] = s.charCodeAt(i) & 0xFF;
+            return buf;
+        }
+
+        function removeAllChildrenFromElement(element) {
+            while(element.firstChild != null) {
+                element.removeChild(element.firstChild)
+            }
+        }
+
+    </script>
+</body>
+</html>
